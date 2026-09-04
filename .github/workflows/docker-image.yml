@@ -10,6 +10,7 @@ jobs:
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v4
       with:
+        username: nologin
         registry: ${{ vars.DOCKER_REGISTRY }}
         password: ${{ secrets.DOCKER_TOKEN }}
     - name: Build and push Backend
