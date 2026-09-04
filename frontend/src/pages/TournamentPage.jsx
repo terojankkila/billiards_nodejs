@@ -1,28 +1,86 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { tournamentService, playerService, setActiveTournament } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import StandingsTable from '../components/StandingsTable'
 import MatchCard from '../components/MatchCard'
 import PlayerSelector from '../components/PlayerSelector'
 import PerformanceChart from '../components/PerformanceChart'
 
+function UnlockModal({ onClose, onUnlocked }) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      await onUnlocked(password)
+    } catch (err) {
+      setError(err.response?.status === 401 ? 'Invalid password' : (err.response?.data?.error || err.message))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-96">
+        <h2 className="text-xl font-bold mb-4">Unlock to add results</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              Unlock
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function TournamentPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { admin } = useAuth()
   const [tournament, setTournament] = useState(null)
   const [players, setPlayers] = useState([])
   const [tournamentPlayers, setTournamentPlayers] = useState([])
   const [matches, setMatches] = useState([])
   const [standings, setStandings] = useState([])
   const [showPlayerSelector, setShowPlayerSelector] = useState(false)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(localStorage.getItem(`tournament_${id}`) === 'true')
+
+  // A user can edit results if they're an admin, or if they hold a valid
+  // tournament token for this tournament (obtained via the tournament password).
+  const hasTournamentToken = localStorage.getItem(`tournament_token_${id}`)
+  const canEdit = !!admin || !!hasTournamentToken
 
   useEffect(() => {
-    if (!localStorage.getItem(`tournament_${id}`)) {
-      navigate('/')
-      return
-    }
     setActiveTournament(id)
     fetchTournamentData()
     return () => setActiveTournament(null)
@@ -43,15 +101,23 @@ function TournamentPage() {
       setMatches(matchesData.data)
       setStandings(standingsData.data)
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.removeItem(`tournament_${id}`)
-        localStorage.removeItem(`tournament_token_${id}`)
+      if (err.response?.status === 404) {
         navigate('/')
         return
       }
       console.error('Error fetching tournament data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUnlock = async (password) => {
+    const result = await tournamentService.verifyPassword(id, password)
+    if (result.data.valid) {
+      localStorage.setItem(`tournament_token_${id}`, result.data.token)
+      setShowUnlockModal(false)
+    } else {
+      throw new Error('Invalid password')
     }
   }
 
@@ -119,7 +185,7 @@ function TournamentPage() {
   const currentRound = roundRobinRounds.find(([, rm]) => !rm.every(m => m.status === 'completed'))?.[0] ?? null
 
   // Show player selector if in setup phase
-  const showPlayerSetup = tournament.status === 'setup' || (tournament.status === 'setup' && tournamentPlayers.length > 0)
+  const showPlayerSetup = tournament.status === 'setup'
 
   return (
     <div>
@@ -130,8 +196,17 @@ function TournamentPage() {
             Status: {tournament.status === 'setup' ? 'Setup - Adding Players' : tournament.status === 'round_robin' ? 'Round Robin In Progress' : tournament.status === 'playoffs' ? 'Playoffs In Progress' : 'Completed'}
           </span>
         </div>
-        <div className="flex space-x-2">
-          {tournament.status === 'setup' && (
+        <div className="flex items-center space-x-2">
+          {!canEdit && (
+            <button
+              onClick={() => setShowUnlockModal(true)}
+              className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800"
+              title="Enter the tournament password to add results"
+            >
+              Unlock to Add Results
+            </button>
+          )}
+          {canEdit && tournament.status === 'setup' && (
             <>
               <button
                 onClick={() => setShowPlayerSelector(true)}
@@ -149,7 +224,7 @@ function TournamentPage() {
               )}
             </>
           )}
-          {allRoundRobinComplete && tournament.status === 'round_robin' && (
+          {canEdit && allRoundRobinComplete && tournament.status === 'round_robin' && (
             <button
               onClick={handleStartPlayoffs}
               className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
@@ -191,6 +266,13 @@ function TournamentPage() {
         />
       )}
 
+      {showUnlockModal && (
+        <UnlockModal
+          onClose={() => setShowUnlockModal(false)}
+          onUnlocked={handleUnlock}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Standings</h2>
@@ -221,6 +303,7 @@ function TournamentPage() {
                           key={match.id}
                           match={match}
                           isCurrentRound
+                          canEdit={canEdit}
                           onDataChanged={handleDataChanged}
                         />
                       ))}
@@ -234,6 +317,7 @@ function TournamentPage() {
                           key={match.id}
                           match={match}
                           isCurrentRound
+                          canEdit={canEdit}
                           onDataChanged={handleDataChanged}
                         />
                       ))}
@@ -247,6 +331,7 @@ function TournamentPage() {
                           key={match.id}
                           match={match}
                           isCurrentRound
+                          canEdit={canEdit}
                           onDataChanged={handleDataChanged}
                         />
                       ))}
@@ -291,6 +376,7 @@ function TournamentPage() {
                               key={match.id}
                               match={match}
                               isCurrentRound={round === currentRound}
+                              canEdit={canEdit}
                               onDataChanged={handleDataChanged}
                             />
                           ))}

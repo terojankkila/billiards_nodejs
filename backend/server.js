@@ -24,39 +24,78 @@ const requireFrontend = (req, res, next) => {
 };
 
 // ---- Tournament access ----
+// Views (GET endpoints) are public: anyone can see a tournament, its players,
+// matches, frames, and standings. Only editing a tournament's results requires
+// authentication: either a valid tournament token (obtained via the tournament
+// password) or a valid admin token. Admins can always edit scores.
 const signTournamentToken = (tournamentId) => jwt.sign(
   { type: 'tournament', tid: tournamentId },
   JWT_SECRET,
   { expiresIn: '12h' }
 );
 
-const requireTournamentAccess = async (req, res, next) => {
+// Resolve the tournament id a request refers to (either from :id or the match's tournament).
+const resolveTournamentId = async (req) => {
+  let tournamentId = Number(req.params.id);
+  if (req.originalUrl.startsWith('/api/matches/')) {
+    const result = await queries.matches.getTournamentId(pool, req.params.id);
+    if (result.rows.length === 0) return null;
+    tournamentId = result.rows[0].tournament_id;
+  }
+  return tournamentId;
+};
+
+const verifyToken = (token) => {
   try {
-    const token = req.headers['x-tournament-token'];
-    if (!token) return res.status(401).json({ error: 'Tournament access required' });
+    return jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return null;
+  }
+};
 
-    let payload;
-    try {
-      payload = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
+// Requires an admin token for the request.
+const requireAdmin = (req, res, next) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  const payload = verifyToken(token);
+  if (!payload || payload.type === 'tournament') {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+  req.admin = { id: payload.id, username: payload.username };
+  next();
+};
+
+// Requires edit access on the tournament the request refers to. A request is
+// authorized if it carries a valid admin token OR a valid tournament token
+// issued for that same tournament.
+const requireEditAccess = async (req, res, next) => {
+  try {
+    const tournamentId = await resolveTournamentId(req);
+    if (tournamentId === null) return res.status(404).json({ error: 'Tournament not found' });
+    req.tournamentId = tournamentId;
+
+    const header = req.headers.authorization || '';
+    const adminToken = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (adminToken) {
+      const adminPayload = verifyToken(adminToken);
+      if (adminPayload && adminPayload.type !== 'tournament') {
+        req.admin = { id: adminPayload.id, username: adminPayload.username };
+        return next();
+      }
+    }
+
+    const tournamentToken = req.headers['x-tournament-token'];
+    if (!tournamentToken) {
+      return res.status(401).json({ error: 'Authentication required to edit results' });
+    }
+    const payload = verifyToken(tournamentToken);
+    if (!payload || payload.type !== 'tournament') {
       return res.status(401).json({ error: 'Invalid or expired tournament token' });
     }
-    if (payload.type !== 'tournament') {
-      return res.status(401).json({ error: 'Invalid or expired tournament token' });
-    }
-
-    let tournamentId = Number(req.params.id);
-    if (req.originalUrl.startsWith('/api/matches/')) {
-      const result = await queries.matches.getTournamentId(pool, req.params.id);
-      if (result.rows.length === 0) return res.status(404).json({ error: 'Match not found' });
-      tournamentId = result.rows[0].tournament_id;
-    }
-
     if (Number(payload.tid) !== tournamentId) {
       return res.status(403).json({ error: 'You do not have access to this tournament' });
     }
-
-    req.tournamentId = tournamentId;
     next();
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,20 +105,7 @@ const requireTournamentAccess = async (req, res, next) => {
 app.use('/api', requireFrontend);
 
 // ---- Admin authentication ----
-const signToken = (admin) => jwt.sign({ id: admin.id, username: admin.username }, JWT_SECRET, { expiresIn: '8h' });
-
-const requireAdmin = (req, res, next) => {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Authentication required' });
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.admin = { id: payload.id, username: payload.username };
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-};
+const signToken = (admin) => jwt.sign({ id: admin.id, username: admin.username, type: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
 
 // Get current admin / verify token
 app.get('/api/auth/me', requireAdmin, async (req, res) => {
@@ -258,7 +284,7 @@ app.get('/api/tournaments', async (req, res) => {
   }
 });
 
-app.get('/api/tournaments/:id', requireTournamentAccess, async (req, res) => {
+app.get('/api/tournaments/:id', async (req, res) => {
   try {
     const result = await queries.tournaments.getById(pool, req.params.id);
     if (result.rows.length === 0) {
@@ -294,7 +320,7 @@ app.post('/api/players', async (req, res) => {
 });
 
 // ---- Tournament player routes ----
-app.post('/api/tournaments/:id/players', requireTournamentAccess, async (req, res) => {
+app.post('/api/tournaments/:id/players', requireEditAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { playerIds } = req.body;
@@ -308,7 +334,7 @@ app.post('/api/tournaments/:id/players', requireTournamentAccess, async (req, re
   }
 });
 
-app.get('/api/tournaments/:id/players', requireTournamentAccess, async (req, res) => {
+app.get('/api/tournaments/:id/players', async (req, res) => {
   try {
     const result = await queries.tournamentPlayers.list(pool, req.params.id);
     res.json(result.rows);
@@ -318,7 +344,7 @@ app.get('/api/tournaments/:id/players', requireTournamentAccess, async (req, res
 });
 
 // ---- Start tournament ----
-app.post('/api/tournaments/:id/start', requireTournamentAccess, async (req, res) => {
+app.post('/api/tournaments/:id/start', requireEditAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const playersResult = await queries.tournamentPlayers.getPlayerIds(pool, id);
@@ -342,7 +368,7 @@ app.post('/api/tournaments/:id/start', requireTournamentAccess, async (req, res)
 });
 
 // ---- Match routes ----
-app.get('/api/tournaments/:id/matches', requireTournamentAccess, async (req, res) => {
+app.get('/api/tournaments/:id/matches', async (req, res) => {
   try {
     const result = await queries.matches.getByTournament(pool, req.params.id);
     res.json(result.rows);
@@ -412,7 +438,7 @@ async function isCurrentRoundMatch(client, match) {
 }
 
 // Start a match (enable frame entry)
-app.post('/api/matches/:id/start', requireTournamentAccess, async (req, res) => {
+app.post('/api/matches/:id/start', requireEditAccess, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -440,7 +466,7 @@ app.post('/api/matches/:id/start', requireTournamentAccess, async (req, res) => 
 });
 
 // ---- Frame routes ----
-app.get('/api/matches/:id/frames', requireTournamentAccess, async (req, res) => {
+app.get('/api/matches/:id/frames', async (req, res) => {
   try {
     const result = await queries.frames.getByMatch(pool, req.params.id);
     res.json(result.rows);
@@ -449,7 +475,7 @@ app.get('/api/matches/:id/frames', requireTournamentAccess, async (req, res) => 
   }
 });
 
-app.post('/api/matches/:id/frames', requireTournamentAccess, async (req, res) => {
+app.post('/api/matches/:id/frames', requireEditAccess, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -482,7 +508,7 @@ app.post('/api/matches/:id/frames', requireTournamentAccess, async (req, res) =>
   }
 });
 
-app.delete('/api/matches/:id/frames/:frameNumber', requireTournamentAccess, async (req, res) => {
+app.delete('/api/matches/:id/frames/:frameNumber', requireEditAccess, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id, frameNumber } = req.params;
@@ -496,7 +522,7 @@ app.delete('/api/matches/:id/frames/:frameNumber', requireTournamentAccess, asyn
   }
 });
 
-app.put('/api/matches/:id', requireTournamentAccess, async (req, res) => {
+app.put('/api/matches/:id', requireEditAccess, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -535,7 +561,7 @@ app.put('/api/matches/:id', requireTournamentAccess, async (req, res) => {
 });
 
 // ---- Standings + stats routes ----
-app.get('/api/tournaments/:id/standings', requireTournamentAccess, async (req, res) => {
+app.get('/api/tournaments/:id/standings', async (req, res) => {
   try {
     const result = await queries.stats.getStandings(pool, req.params.id);
     const standings = result.rows.map((row, index) => ({ ...row, rank: index + 1 }));
@@ -545,7 +571,7 @@ app.get('/api/tournaments/:id/standings', requireTournamentAccess, async (req, r
   }
 });
 
-app.post('/api/tournaments/:id/playoffs', requireTournamentAccess, async (req, res) => {
+app.post('/api/tournaments/:id/playoffs', requireEditAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const standingsResult = await queries.stats.getTopN(pool, id, 8);

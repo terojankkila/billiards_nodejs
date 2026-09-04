@@ -12,7 +12,8 @@ Full-stack application for managing billiard tournaments with round-robin play, 
 - **Playoffs**: Top 8 players advance, seeded 1v8, 2v7, 3v6, 4v5
 - **Editable Results**: Results entered per-frame; individual frames can be edited/deleted to fix errors
 - **Performance Analytics**: Charts showing player performance in current tournament and across all tournaments
-- **Password Protection**: Only players with the tournament password can view tournament status and add results
+- **Public Viewing**: Anyone can view tournaments, standings, matches, and results
+- **Password Protection**: The tournament password is required to add results; admins can always add scores
 - **Database Persistence**: All data stored in PostgreSQL
 
 ## Prerequisites
@@ -82,21 +83,29 @@ Production Dockerfiles are provided for both services:
 # Set your registry (no trailing slash)
 export REGISTRY="registry.example.com/team"
 
-# Backend
-docker build -t $REGISTRY/billiard-backend:latest -f backend/Dockerfile.prod backend/
-docker push $REGISTRY/billiard-backend:latest
+# Production images are built for linux/amd64 (x86_64). If your build host is
+# not amd64 (e.g. an arm64 Mac), enable cross-architecture emulation first:
+#   docker run --privileged --rm tonistiigi/binfmt --install amd64
+# or ensure a buildx builder with per-platform support is active:
+#   docker buildx create --use
 
-# Frontend
-docker build -t $REGISTRY/billiard-frontend:latest -f frontend/Dockerfile.prod frontend/
-docker push $REGISTRY/billiard-frontend:latest
+# Backend
+docker buildx build --platform linux/amd64 --push \
+  -t $REGISTRY/billiard-backend:latest -f backend/Dockerfile.prod backend/
+
+# Frontend (optionally pass VITE_APP_KEY: --build-arg VITE_APP_KEY=...)
+docker buildx build --platform linux/amd64 --push \
+  -t $REGISTRY/billiard-frontend:latest -f frontend/Dockerfile.prod frontend/
 ```
+
+The resulting images are amd64 (x86_64) manifests — required for standard x86-64 Kubernetes node pools. Verify with `docker buildx imagetools inspect $REGISTRY/billiard-backend:latest`.
 
 ### 2. Install the Helm chart
 
 ```bash
 cd deploy/helm
 
-# Fetch the bitnami postgresql dependency
+# Fetch the postgres dependency (cloudpirates OCI chart)
 helm dependency update billiard-tournaments
 
 # Install (override secrets via --set)
@@ -106,8 +115,9 @@ helm upgrade --install billiard ./billiard-tournaments \
   --set backend.jwtSecret=$(openssl rand -hex 32) \
   --set backend.frontendKey=$(openssl rand -hex 16) \
   --set backend.adminPassword=CHANGE_ME \
-  --set postgresql.auth.postgresPassword=$(openssl rand -hex 16) \
-  --set postgresql.auth.password=$(openssl rand -hex 16) \
+  --set postgres.auth.username=billiard \
+  --set postgres.auth.database=billiard_tournaments \
+  --set postgres.auth.password=$(openssl rand -hex 16) \
   --set ingress.hosts[0].host=billiard.example.com \
   --set ingress.tls[0].secretName=billiard-tls \
   --set ingress.tls[0].hosts[0]=billiard.example.com
@@ -135,8 +145,10 @@ Open `https://billiard.example.com` in your browser.
 | `backend.adminPassword` | `""` | Default admin password (CHANGE THIS) |
 | `frontend.image.repository` | `billiard-frontend` | Frontend image name |
 | `frontend.replicaCount` | `2` | Frontend pod count |
-| `postgresql.enabled` | `true` | Deploy bitnami PostgreSQL |
-| `postgresql.auth.database` | `billiard_tournaments` | Database name |
+| `postgres.enabled` | `true` | Deploy the postgres subchart |
+| `postgres.auth.username` | `billiard` | Database superuser name |
+| `postgres.auth.password` | `""` | Superuser password (auto-generated if empty) |
+| `postgres.auth.database` | `billiard_tournaments` | Database name |
 | `ingress.enabled` | `true` | Create NGINX Ingress resource |
 | `ingress.hosts` | `billiard.example.com` | Ingress hostname(s) |
 | `ingress.tls` | `[]` | TLS configuration |

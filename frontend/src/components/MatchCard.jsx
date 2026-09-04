@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { matchService } from '../services/api'
 
-function MatchCard({ match, isCurrentRound = false, onDataChanged }) {
+function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChanged }) {
   const [frames, setFrames] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -107,13 +107,15 @@ function MatchCard({ match, isCurrentRound = false, onDataChanged }) {
                   style={{ backgroundColor: wonByP1 ? '#dbeafe' : '#fee2e2', color: wonByP1 ? '#1d4ed8' : '#b91c1c' }}
                 >
                   F{frame.frame_number}
-                  <button
-                    onClick={() => handleDeleteFrame(frame.frame_number)}
-                    className="ml-1 text-gray-400 hover:text-red-600 text-[10px] font-bold"
-                    title="Delete frame"
-                  >
-                    ×
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => handleDeleteFrame(frame.frame_number)}
+                      className="ml-1 text-gray-400 hover:text-red-600 text-[10px] font-bold"
+                      title="Delete frame"
+                    >
+                      ×
+                    </button>
+                  )}
                 </span>
               )
             })}
@@ -121,7 +123,7 @@ function MatchCard({ match, isCurrentRound = false, onDataChanged }) {
         )}
       </div>
 
-      {!isCompleted && match.is_started && !scoreReached && (
+      {!isCompleted && match.is_started && !scoreReached && canEdit && (
         <div className="text-center mb-2">
           <p className="text-xs text-gray-500 mb-2">
             Record frame {frames.length + 1} winner:
@@ -143,7 +145,11 @@ function MatchCard({ match, isCurrentRound = false, onDataChanged }) {
         </div>
       )}
 
-      {!isCompleted && !match.is_started && (
+      {!isCompleted && match.is_started && !scoreReached && !canEdit && (
+        <p className="text-center text-xs text-gray-400 mb-2">Unlock to record results</p>
+      )}
+
+      {!isCompleted && !match.is_started && canEdit && (
         <div className="text-center mb-2">
           {isCurrentRound ? (
             <button

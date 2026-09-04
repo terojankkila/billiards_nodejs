@@ -93,28 +93,27 @@ async function run() {
     else throw new Error(`Expected 403 with wrong X-App-Key, got ${res.status}`);
   }
 
-  // Tournament endpoints require a valid password token
-  try {
-    await request(`/tournaments/${tourney.id}/standings`);
-    throw new Error('Standings without tournament token should have failed');
-  } catch (e) {
-    if (!/Tournament access required/.test(JSON.stringify(e.message))) throw e;
-    console.log('Standings blocked without tournament token OK');
+  // Tournament views (standings, matches, players) are PUBLIC — no token needed.
+  {
+    const res = await fetch(BASE + `/tournaments/${tourney.id}/standings`, {
+      headers: { 'Content-Type': 'application/json', 'X-App-Key': APP_KEY },
+    });
+    if (res.status === 200) console.log('Standings publicly viewable OK');
+    else throw new Error(`Expected 200 for public standings, got ${res.status}`);
   }
+  // Score-editing (start) requires authentication
   try {
-    await request(`/tournaments/${tourney.id}/start`, 'POST', null, { useTournament: false });
-    throw new Error('Start without tournament token should have failed');
+    await request(`/tournaments/${tourney.id}/start`, 'POST', null, { useAdmin: false, useTournament: false });
+    throw new Error('Start without tournament token or admin should have failed');
   } catch (e) {
-    if (!/Tournament access required/.test(JSON.stringify(e.message))) throw e;
-    console.log('Tournament start blocked without tournament token OK');
+    if (!/Authentication required/.test(JSON.stringify(e.message))) throw e;
+    console.log('Start blocked without auth OK');
   }
-  try {
-    await request(`/tournaments/${tourney.id}/standings`, 'GET', null, { useAdmin: false });
-    throw new Error('Standings with only an admin token should have failed');
-  } catch (e) {
-    if (!/Tournament access required/.test(JSON.stringify(e.message))) throw e;
-    console.log('Admin token alone does not grant tournament access OK');
-  }
+
+  // An admin token alone grants edit access (admins can always score).
+  // Verified here against the players route to avoid double-starting.
+  await request(`/tournaments/${tourney.id}/players`, 'POST', { playerIds: [] }, { useTournament: false, useAdmin: true });
+  console.log('Admin can edit tournament without tournament token OK');
 
   // Wrong-password verify must fail and issue no token
   try {
@@ -131,14 +130,14 @@ async function run() {
   T_TOKEN = verified.token;
   console.log('Tournament password verified, access token issued OK');
 
-  // A token for one tournament must not unlock another
+  // A tournament token only unlocks editing for its own tournament, not another.
   const other = await request('/tournaments', 'POST', { name: 'No Access', password: 'x' });
   try {
-    await request(`/tournaments/${other.id}/standings`);
-    throw new Error('Cross-tournament access should have failed');
+    await request(`/tournaments/${other.id}/start`, 'POST', null, { useAdmin: false });
+    throw new Error('Cross-tournament edit access should have failed');
   } catch (e) {
     if (!/do not have access/.test(JSON.stringify(e.message))) throw e;
-    console.log('Cross-tournament access blocked OK');
+    console.log('Cross-tournament edit access blocked OK');
   }
 
   // Create 8 players

@@ -34,7 +34,7 @@ function CreateTournamentModal({ onClose, onCreated }) {
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Admin Password <span className="text-xs text-gray-500">(required to add results & view status)</span>
+              Admin Password <span className="text-xs text-gray-500">(required to add results)</span>
             </label>
             <input
               type="password"
@@ -67,23 +67,6 @@ function CreateTournamentModal({ onClose, onCreated }) {
 
 function TournamentCard({ tournament }) {
   const navigate = useNavigate()
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-
-  const handleOpenTournament = async (e) => {
-    e.preventDefault()
-    try {
-      const result = await tournamentService.verifyPassword(tournament.id, password)
-      if (result.data.valid) {
-        localStorage.setItem(`tournament_${tournament.id}`, 'true')
-        localStorage.setItem(`tournament_token_${tournament.id}`, result.data.token)
-        navigate(`/tournament/${tournament.id}`)
-      }
-    } catch (err) {
-      setError('Invalid password')
-    }
-  }
 
   const getStatusBadge = (status) => {
     const colors = {
@@ -109,44 +92,12 @@ function TournamentCard({ tournament }) {
         <p className="text-sm text-gray-500 mb-4">
           Created: {new Date(tournament.created_at).toLocaleDateString()}
         </p>
-        
-        {showPasswordModal ? (
-          <form onSubmit={handleOpenTournament}>
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Enter Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-            </div>
-            <div className="flex space-x-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Access Tournament
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPasswordModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Open Tournament
-          </button>
-        )}
+        <button
+          onClick={() => navigate(`/tournament/${tournament.id}`)}
+          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Open Tournament
+        </button>
       </div>
     </div>
   )
