@@ -20,12 +20,12 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.prod
           push: true
-          tags: billiard-backend:latest
+          tags: ${{ vars.DOCKER_REGISTRY }}/billiard-backend:latest
       - name: Build and push Frontend
         uses: docker/build-push-action@v7
         with:
           context: ./frontend
           file: ./frontend/Dockerfile.prod
           push: true
-          tags: billiard-frontend:latest
+          tags: ${{ vars.DOCKER_REGISTRY }}/billiard-frontend:latest
         
