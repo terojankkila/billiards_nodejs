@@ -62,6 +62,92 @@ To stop: `docker-compose down` (add `-v` to also remove the database volume).
 
 ### Option 2: Local development without Docker
 
+TODO: Add local dev instructions.
+
+## Kubernetes Deployment (Helm)
+
+### Prerequisites
+
+- Kubernetes cluster (v1.24+)
+- [Helm 3](https://helm.sh/docs/intro/install/) installed
+- `kubectl` configured to point at your cluster
+- A private container registry (update `global.registry` in values)
+- NGINX Ingress Controller installed in the cluster
+
+### 1. Build and push Docker images
+
+Production Dockerfiles are provided for both services:
+
+```bash
+# Set your registry (no trailing slash)
+export REGISTRY="registry.example.com/team"
+
+# Backend
+docker build -t $REGISTRY/billiard-backend:latest -f backend/Dockerfile.prod backend/
+docker push $REGISTRY/billiard-backend:latest
+
+# Frontend
+docker build -t $REGISTRY/billiard-frontend:latest -f frontend/Dockerfile.prod frontend/
+docker push $REGISTRY/billiard-frontend:latest
+```
+
+### 2. Install the Helm chart
+
+```bash
+cd deploy/helm
+
+# Fetch the bitnami postgresql dependency
+helm dependency update billiard-tournaments
+
+# Install (override secrets via --set)
+helm upgrade --install billiard ./billiard-tournaments \
+  --namespace billiard --create-namespace \
+  --set global.registry=$REGISTRY \
+  --set backend.jwtSecret=$(openssl rand -hex 32) \
+  --set backend.frontendKey=$(openssl rand -hex 16) \
+  --set backend.adminPassword=CHANGE_ME \
+  --set postgresql.auth.postgresPassword=$(openssl rand -hex 16) \
+  --set postgresql.auth.password=$(openssl rand -hex 16) \
+  --set ingress.hosts[0].host=billiard.example.com \
+  --set ingress.tls[0].secretName=billiard-tls \
+  --set ingress.tls[0].hosts[0]=billiard.example.com
+```
+
+### 3. Verify the deployment
+
+```bash
+kubectl -n billiard get pods
+kubectl -n billiard logs -l app.kubernetes.io/component=backend --tail=20
+```
+
+Open `https://billiard.example.com` in your browser.
+
+### Configuration reference
+
+| Value | Default | Description |
+|---|---|---|
+| `global.registry` | `""` | Private registry prefix (e.g. `ghcr.io/team`) |
+| `backend.image.repository` | `billiard-backend` | Backend image name |
+| `backend.image.tag` | `latest` | Backend image tag |
+| `backend.jwtSecret` | `""` | JWT signing secret (CHANGE THIS) |
+| `backend.frontendKey` | `""` | Shared X-App-Key (CHANGE THIS) |
+| `backend.adminUsername` | `admin` | Default admin username |
+| `backend.adminPassword` | `""` | Default admin password (CHANGE THIS) |
+| `frontend.image.repository` | `billiard-frontend` | Frontend image name |
+| `frontend.replicaCount` | `2` | Frontend pod count |
+| `postgresql.enabled` | `true` | Deploy bitnami PostgreSQL |
+| `postgresql.auth.database` | `billiard_tournaments` | Database name |
+| `ingress.enabled` | `true` | Create NGINX Ingress resource |
+| `ingress.hosts` | `billiard.example.com` | Ingress hostname(s) |
+| `ingress.tls` | `[]` | TLS configuration |
+
+### 4. Uninstall
+
+```bash
+helm uninstall billiard -n billiard
+kubectl delete namespace billiard
+```
+
 ## Usage
 
 1. Open the app in your browser

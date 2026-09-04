@@ -1,0 +1,91 @@
+# -- Global settings ----------------------------------------------------------
+global:
+  # Private container registry (no trailing slash)
+  # Example: registry.example.com/team
+  registry: ""
+
+# -- PostgreSQL (bitnami subchart) -------------------------------------------
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: ""   # Set via --set or secret
+    username: billiard
+    password: ""           # Set via --set or secret
+    database: billiard_tournaments
+  primary:
+    persistence:
+      enabled: true
+      size: 5Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# -- Backend (Node/Express API) ----------------------------------------------
+backend:
+  replicaCount: 1
+  image:
+    repository: billiard-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3001
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  # Override these in production
+  jwtSecret: ""
+  adminUsername: admin
+  adminPassword: ""
+  frontendKey: ""
+  frontendOrigins: ""
+
+# -- Frontend (React/Vite + nginx) -------------------------------------------
+frontend:
+  replicaCount: 2
+  image:
+    repository: billiard-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  # App key must match backend.frontendKey
+  appKey: ""
+
+# -- Ingress (NGINX) ---------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: billiard.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          serviceName: backend
+          servicePort: 3001
+        - path: /
+          pathType: Prefix
+          serviceName: frontend
+          servicePort: 80
+  tls: []
+  #  - secretName: billiard-tls
+  #    hosts:
+  #      - billiard.example.com

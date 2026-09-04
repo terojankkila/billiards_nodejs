@@ -1,0 +1,26 @@
+Billiard Tournaments has been deployed!
+
+{{- if .Values.ingress.enabled }}
+Access the application at:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+Get the frontend URL by running:
+  export POD_NAME=$(kubectl get pods -l "app.kubernetes.io/component=frontend" -o jsonpath="{.items[0].metadata.name}")
+  kubectl port-forward $POD_NAME 8080:80
+  Then open http://localhost:8080
+
+Get the backend URL by running:
+  export POD_NAME=$(kubectl get pods -l "app.kubernetes.io/component=backend" -o jsonpath="{.items[0].metadata.name}")
+  kubectl port-forward $POD_NAME 3001:3001
+  Then open http://localhost:3001/api/players
+{{- end }}
+
+Default admin credentials:
+  Username: {{ .Values.backend.adminUsername }}
+  Password: (check the {{ .Release.Name }}-secret)
+
+To view logs:
+  kubectl logs -l app.kubernetes.io/component=backend -f
+  kubectl logs -l app.kubernetes.io/component=frontend -f
