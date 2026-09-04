@@ -83,22 +83,14 @@ Production Dockerfiles are provided for both services:
 # Set your registry (no trailing slash)
 export REGISTRY="registry.example.com/team"
 
-# Production images are built for linux/amd64 (x86_64). If your build host is
-# not amd64 (e.g. an arm64 Mac), enable cross-architecture emulation first:
-#   docker run --privileged --rm tonistiigi/binfmt --install amd64
-# or ensure a buildx builder with per-platform support is active:
-#   docker buildx create --use
-
 # Backend
-docker buildx build --platform linux/amd64 --push \
-  -t $REGISTRY/billiard-backend:latest -f backend/Dockerfile.prod backend/
+docker build -t $REGISTRY/billiard-backend:latest -f backend/Dockerfile.prod backend/
+docker push $REGISTRY/billiard-backend:latest
 
-# Frontend (optionally pass VITE_APP_KEY: --build-arg VITE_APP_KEY=...)
-docker buildx build --platform linux/amd64 --push \
-  -t $REGISTRY/billiard-frontend:latest -f frontend/Dockerfile.prod frontend/
+# Frontend
+docker build -t $REGISTRY/billiard-frontend:latest -f frontend/Dockerfile.prod frontend/
+docker push $REGISTRY/billiard-frontend:latest
 ```
-
-The resulting images are amd64 (x86_64) manifests — required for standard x86-64 Kubernetes node pools. Verify with `docker buildx imagetools inspect $REGISTRY/billiard-backend:latest`.
 
 ### 2. Install the Helm chart
 
