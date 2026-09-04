@@ -4,25 +4,25 @@ global:
   # Example: registry.example.com/team
   registry: ""
 
-# -- PostgreSQL (bitnami subchart) -------------------------------------------
-postgresql:
+# -- PostgreSQL (cloudpirates/postgres subchart) ------------------------------
+postgres:
   enabled: true
   auth:
-    postgresPassword: ""   # Set via --set or secret
+    # Superuser created at init database. Password auto-generated and stored in
+    # the <release>-postgres secret (key postgres-password) if left empty.
     username: billiard
-    password: ""           # Set via --set or secret
+    password: ""           # Set via --set or generated
     database: billiard_tournaments
-  primary:
-    persistence:
-      enabled: true
-      size: 5Gi
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 # -- Backend (Node/Express API) ----------------------------------------------
 backend:
