@@ -788,6 +788,57 @@ app.get('/api/players/:id/stats', async (req, res) => {
   }
 });
 
+// Aggregate stats for all players across every tournament.
+// Returns every player who has participated (even those with zero matches)
+// together with match win/loss counts, frame win/loss counts, and win percentages.
+app.get('/api/stats/all-players', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         p.id,
+         p.name,
+         COUNT(DISTINCT m.id)
+           FILTER (WHERE m.status = 'completed')::int AS matches_played,
+         COUNT(DISTINCT m.id)
+           FILTER (WHERE m.status = 'completed' AND m.winner_id = p.id)::int AS matches_won,
+         COALESCE(SUM(
+           CASE WHEN m.player1_id = p.id THEN m.player1_frames
+                WHEN m.player2_id = p.id THEN m.player2_frames
+           END) FILTER (WHERE m.status = 'completed'), 0)::int AS frames_won,
+         COALESCE(SUM(
+           CASE WHEN m.player1_id = p.id THEN m.player2_frames
+                WHEN m.player2_id = p.id THEN m.player1_frames
+           END) FILTER (WHERE m.status = 'completed'), 0)::int AS frames_lost
+       FROM players p
+       JOIN tournament_players tp ON tp.player_id = p.id
+       LEFT JOIN matches m ON m.tournament_id = tp.tournament_id
+         AND (m.player1_id = p.id OR m.player2_id = p.id)
+         AND m.status = 'completed'
+       GROUP BY p.id, p.name
+       ORDER BY matches_won DESC, frames_won DESC`
+    );
+
+    const stats = result.rows.map((r) => {
+      const matchesPlayed = r.matches_played;
+      const framesWon = r.frames_won;
+      const framesLost = r.frames_lost;
+      return {
+        ...r,
+        match_win_pct: matchesPlayed > 0
+          ? Math.round((r.matches_won / matchesPlayed) * 1000) / 10
+          : 0,
+        frame_win_pct: (framesWon + framesLost) > 0
+          ? Math.round((framesWon / (framesWon + framesLost)) * 1000) / 10
+          : 0,
+      };
+    });
+
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Initialize database and start server
 initDatabase().then(() => {
   app.listen(PORT, () => {

@@ -55,6 +55,7 @@ export const playerService = {
   getAll: () => API.get('/players'),
   create: (data) => API.post('/players', data),
   getStats: (id) => API.get(`/players/${id}/stats`),
+  getAllStats: () => API.get('/stats/all-players'),
 }
 
 export const matchService = {

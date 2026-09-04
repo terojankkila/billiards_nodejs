@@ -303,6 +303,15 @@ async function run() {
   const finalMatch = finalMatches.find(m => m.round === 'final');
   console.log('Champion:', finalMatch.winner_name);
 
+  // Verify all-players stats endpoint
+  const allStats = await request('/stats/all-players', 'GET', null, { useAdmin: false });
+  if (!Array.isArray(allStats) || allStats.length < 8) throw new Error('Expected at least 8 players in all-players stats');
+  const statsShape = allStats[0];
+  for (const key of ['name', 'matches_played', 'matches_won', 'frames_won', 'frames_lost', 'match_win_pct', 'frame_win_pct']) {
+    if (!(key in statsShape)) throw new Error(`All-players stats missing key: ${key}`);
+  }
+  console.log('All-players stats:', allStats.length, 'players, top:', allStats[0].name, `${allStats[0].matches_won} wins, ${allStats[0].match_win_pct}% match win, ${allStats[0].frame_win_pct}% frame win`);
+
   console.log('\n✅ ALL E2E TESTS PASSED');
 }
 
