@@ -18,14 +18,14 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ./backend
-          file: Dockerfile.prod
+          file: ./backend/Dockerfile.prod
           push: true
           tags: billiard-backend:latest
       - name: Build and push Frontend
         uses: docker/build-push-action@v7
         with:
           context: ./frontend
-          file: Dockerfile.prod
+          file: ./frontend/Dockerfile.prod
           push: true
           tags: billiard-frontend:latest
         
