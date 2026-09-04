@@ -7,24 +7,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v4
-      with:
-        username: nologin
-        registry: ${{ vars.DOCKER_REGISTRY }}
-        password: ${{ secrets.DOCKER_TOKEN }}
-    - name: Build and push Backend
-      uses: docker/build-push-action@v7
-      with:
-        context: ./backend
-        file: Dockerfile.prod
-        push: true
-        tags: billiard-backend:latest
-    - name: Build and push Frontend
-      uses: docker/build-push-action@v7
-      with:
-        context: ./frontend
-        file: Dockerfile.prod
-        push: true
-        tags: billiard-frontend:latest
+      - uses: actions/checkout@v7
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          username: nologin
+          registry: ${{ vars.DOCKER_REGISTRY }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build and push Backend
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          file: Dockerfile.prod
+          push: true
+          tags: billiard-backend:latest
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          file: Dockerfile.prod
+          push: true
+          tags: billiard-frontend:latest
         
