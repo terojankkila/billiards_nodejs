@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { tournamentService } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 function CreateTournamentModal({ onClose, onCreated }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
 
@@ -13,17 +15,17 @@ function CreateTournamentModal({ onClose, onCreated }) {
       await tournamentService.create({ name, password })
       onCreated()
     } catch (err) {
-      alert(`Error creating tournament: ${err.response?.data?.error || err.message}`)
+      alert(`${t('home.errorCreate')} ${err.response?.data?.error || err.message}`)
     }
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-96">
-        <h2 className="text-xl font-bold mb-4">Create New Tournament</h2>
+        <h2 className="text-xl font-bold mb-4">{t('home.createTitle')}</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('home.name')}</label>
             <input
               type="text"
               value={name}
@@ -34,7 +36,7 @@ function CreateTournamentModal({ onClose, onCreated }) {
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Admin Password <span className="text-xs text-gray-500">(required to add results)</span>
+              {t('home.adminPassword')} <span className="text-xs text-gray-500">{t('home.passwordHint')}</span>
             </label>
             <input
               type="password"
@@ -50,13 +52,13 @@ function CreateTournamentModal({ onClose, onCreated }) {
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              Create Tournament
+              {t('home.create')}
             </button>
           </div>
         </form>
@@ -66,6 +68,7 @@ function CreateTournamentModal({ onClose, onCreated }) {
 }
 
 function TournamentCard({ tournament }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const getStatusBadge = (status) => {
@@ -75,9 +78,15 @@ function TournamentCard({ tournament }) {
       'playoffs': 'bg-purple-100 text-purple-800',
       'completed': 'bg-green-100 text-green-800'
     }
+    const labels = {
+      'setup': t('home.statusSetup'),
+      'round_robin': t('home.statusRoundRobin'),
+      'playoffs': t('home.statusPlayoffs'),
+      'completed': t('home.statusCompleted')
+    }
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status.replace('_', ' ').toUpperCase()}
+        {labels[status] || status.replace('_', ' ').toUpperCase()}
       </span>
     )
   }
@@ -90,13 +99,13 @@ function TournamentCard({ tournament }) {
           {getStatusBadge(tournament.status)}
         </div>
         <p className="text-sm text-gray-500 mb-4">
-          Created: {new Date(tournament.created_at).toLocaleDateString()}
+          {t('home.created')} {new Date(tournament.created_at).toLocaleDateString()}
         </p>
         <button
           onClick={() => navigate(`/tournament/${tournament.id}`)}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
-          Open Tournament
+          {t('home.open')}
         </button>
       </div>
     </div>
@@ -104,6 +113,7 @@ function TournamentCard({ tournament }) {
 }
 
 function HomePage() {
+  const { t } = useTranslation()
   const { admin } = useAuth()
   const [tournaments, setTournaments] = useState([])
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -132,13 +142,13 @@ function HomePage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Tournaments</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('home.title')}</h1>
         {admin && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
           >
-            + New Tournament
+            {t('home.newTournament')}
           </button>
         )}
       </div>
@@ -150,8 +160,8 @@ function HomePage() {
       ) : tournaments.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
           <p className="text-2xl mb-2">🎱</p>
-          <p className="text-lg">No tournaments yet</p>
-          <p className="text-sm text-gray-400 mt-1">Create your first tournament to get started</p>
+          <p className="text-lg">{t('home.noTournaments')}</p>
+          <p className="text-sm text-gray-400 mt-1">{t('home.noTournamentsHint')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { adminService, authService } from '../services/api'
 
 function ChangePassword({ onDone }) {
+  const { t } = useTranslation()
   const { admin, setAuthAdmin } = useAuth()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -16,28 +18,28 @@ function ChangePassword({ onDone }) {
     setError('')
     setSuccess('')
     if (next !== confirm) {
-      setError('New passwords do not match')
+      setError(t('admin.passwordsMismatch'))
       return
     }
     try {
       await authService.changePassword(current, next)
-      setSuccess('Password updated')
+      setSuccess(t('admin.passwordUpdated'))
       setCurrent('')
       setNext('')
       setConfirm('')
       setAuthAdmin({ ...admin, is_default: false })
       if (onDone) onDone()
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to change password')
+      setError(err.response?.data?.error || t('admin.changeFailed'))
     }
   }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Change My Password</h2>
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('admin.changePassword')}</h2>
       <form onSubmit={handleSubmit} className="max-w-sm space-y-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.currentPassword')}</label>
           <input
             type="password"
             value={current}
@@ -47,7 +49,7 @@ function ChangePassword({ onDone }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.newPassword')}</label>
           <input
             type="password"
             value={next}
@@ -57,7 +59,7 @@ function ChangePassword({ onDone }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.confirmPassword')}</label>
           <input
             type="password"
             value={confirm}
@@ -72,7 +74,7 @@ function ChangePassword({ onDone }) {
           type="submit"
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
-          Update Password
+          {t('admin.updatePassword')}
         </button>
       </form>
     </div>
@@ -80,6 +82,7 @@ function ChangePassword({ onDone }) {
 }
 
 function AdminManagement() {
+  const { t } = useTranslation()
   const { admin } = useAuth()
   const [admins, setAdmins] = useState([])
   const [showCreate, setShowCreate] = useState(false)
@@ -92,7 +95,7 @@ function AdminManagement() {
       const res = await adminService.list()
       setAdmins(res.data)
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load admins')
+      setError(err.response?.data?.error || t('admin.errorLoadAdmins'))
     }
   }
 
@@ -110,29 +113,29 @@ function AdminManagement() {
       setShowCreate(false)
       fetchAdmins()
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create admin')
+      setError(err.response?.data?.error || t('admin.errorCreateAdmin'))
     }
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this admin account?')) return
+    if (!window.confirm(t('admin.confirmDeleteAdmin'))) return
     try {
       await adminService.remove(id)
       fetchAdmins()
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete admin')
+      setError(err.response?.data?.error || t('admin.errorDeleteAdmin'))
     }
   }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">Admin Users</h2>
+        <h2 className="text-lg font-semibold text-gray-800">{t('admin.adminUsers')}</h2>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
         >
-          + New Admin
+          {t('admin.newAdmin')}
         </button>
       </div>
 
@@ -143,7 +146,7 @@ function AdminManagement() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              placeholder={t('admin.username')}
               className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -151,7 +154,7 @@ function AdminManagement() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder={t('admin.password')}
               className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -159,14 +162,14 @@ function AdminManagement() {
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex space-x-2">
             <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
-              Create Admin
+              {t('admin.createAdmin')}
             </button>
             <button
               type="button"
               onClick={() => setShowCreate(false)}
               className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </form>
@@ -177,23 +180,23 @@ function AdminManagement() {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.username')}</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.type')}</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.created')}</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.actions')}</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {admins.map((a) => (
             <tr key={a.id}>
               <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                {a.username} {a.id === admin?.id && <span className="text-gray-400">(you)</span>}
+                {a.username} {a.id === admin?.id && <span className="text-gray-400">{t('admin.you')}</span>}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                 {a.is_default ? (
-                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">Default</span>
+                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">{t('admin.default')}</span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">Admin</span>
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">{t('admin.admin')}</span>
                 )}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
@@ -205,7 +208,7 @@ function AdminManagement() {
                     onClick={() => handleDelete(a.id)}
                     className="text-red-600 hover:text-red-800"
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 )}
               </td>
@@ -218,12 +221,13 @@ function AdminManagement() {
 }
 
 function AdminPage() {
+  const { t } = useTranslation()
   const { admin } = useAuth()
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Admin Panel <span className="text-base font-normal text-gray-500">({admin?.username})</span>
+        {t('admin.panel')} <span className="text-base font-normal text-gray-500">({admin?.username})</span>
       </h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChangePassword />

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { matchService } from '../services/api'
 
 function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChanged }) {
+  const { t } = useTranslation()
   const [frames, setFrames] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +28,7 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
       await matchService.start(match.id)
       onDataChanged && onDataChanged()
     } catch (err) {
-      alert(`Error starting match: ${err.response?.data?.error || err.message}`)
+      alert(`${t('matchCard.errorStart')} ${err.response?.data?.error || err.message}`)
     }
   }
 
@@ -37,27 +39,27 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
       await fetchFrames()
       onDataChanged && onDataChanged()
     } catch (err) {
-      alert(`Error saving frame: ${err.response?.data?.error || err.message}`)
+      alert(`${t('matchCard.errorSaveFrame')} ${err.response?.data?.error || err.message}`)
     }
   }
 
   const handleDeleteFrame = async (frameNumber) => {
-    if (!window.confirm(`Remove frame ${frameNumber}?`)) return
+    if (!window.confirm(t('matchCard.confirmDeleteFrame', { frame: frameNumber }))) return
     try {
       await matchService.deleteFrame(match.id, frameNumber)
       await fetchFrames()
       onDataChanged && onDataChanged()
     } catch (err) {
-      alert(`Error removing frame: ${err.response?.data?.error || err.message}`)
+      alert(`${t('matchCard.errorRemoveFrame')} ${err.response?.data?.error || err.message}`)
     }
   }
 
   const getMatchTitle = (round, roundNumber) => {
-    if (round === 'round_robin') return `Round ${roundNumber || '-'}`
+    if (round === 'round_robin') return t('matchCard.round', { round: roundNumber || '-' })
     switch (round) {
-      case 'quarter_final': return 'Quarter Final'
-      case 'semi_final': return 'Semi Final'
-      case 'final': return 'Final'
+      case 'quarter_final': return t('matchCard.quarterFinal')
+      case 'semi_final': return t('matchCard.semiFinal')
+      case 'final': return t('matchCard.final')
       default: return round
     }
   }
@@ -86,15 +88,15 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
 
       {isCompleted && (
         <div className="text-center mb-3 text-sm text-gray-600">
-          Winner: <span className="font-bold text-green-600">{match.winner_name}</span>
+          {t('matchCard.winner')} <span className="font-bold text-green-600">{match.winner_name}</span>
         </div>
       )}
 
       <div className="border-t border-gray-100 pt-2 mb-3">
         {loading ? (
-          <p className="text-xs text-gray-400 text-center py-1">Loading frames...</p>
+          <p className="text-xs text-gray-400 text-center py-1">{t('matchCard.loadingFrames')}</p>
         ) : frames.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-1">No frames recorded</p>
+          <p className="text-xs text-gray-400 text-center py-1">{t('matchCard.noFrames')}</p>
         ) : (
           <div className="flex flex-wrap gap-1">
             {frames.map((frame) => {
@@ -102,7 +104,7 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
               return (
                 <span
                   key={frame.frame_number}
-                  title={wonByP1 ? `${match.player1_name} won` : `${match.player2_name} won`}
+                  title={wonByP1 ? t('matchCard.frameWonBy', { player: match.player1_name }) : t('matchCard.frameWonBy', { player: match.player2_name })}
                   className="group relative inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
                   style={{ backgroundColor: wonByP1 ? '#dbeafe' : '#fee2e2', color: wonByP1 ? '#1d4ed8' : '#b91c1c' }}
                 >
@@ -111,7 +113,7 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
                     <button
                       onClick={() => handleDeleteFrame(frame.frame_number)}
                       className="ml-1 text-gray-400 hover:text-red-600 text-[10px] font-bold"
-                      title="Delete frame"
+                      title={t('matchCard.deleteFrame')}
                     >
                       ×
                     </button>
@@ -126,7 +128,7 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
       {!isCompleted && match.is_started && !scoreReached && canEdit && (
         <div className="text-center mb-2">
           <p className="text-xs text-gray-500 mb-2">
-            Record frame {frames.length + 1} winner:
+            {t('matchCard.recordFrameWinner', { frame: frames.length + 1 })}
           </p>
           <div className="flex justify-center space-x-2">
             <button
@@ -146,7 +148,7 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
       )}
 
       {!isCompleted && match.is_started && !scoreReached && !canEdit && (
-        <p className="text-center text-xs text-gray-400 mb-2">Unlock to record results</p>
+        <p className="text-center text-xs text-gray-400 mb-2">{t('matchCard.unlockToRecord')}</p>
       )}
 
       {!isCompleted && !match.is_started && canEdit && (
@@ -156,10 +158,10 @@ function MatchCard({ match, isCurrentRound = false, canEdit = true, onDataChange
               onClick={handleStart}
               className="w-full px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
             >
-              Start Game
+              {t('matchCard.startGame')}
             </button>
           ) : (
-            <p className="text-sm text-gray-400 py-2">Waiting for earlier rounds</p>
+            <p className="text-sm text-gray-400 py-2">{t('matchCard.waitingForRounds')}</p>
           )}
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { playerService } from '../services/api'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -6,24 +7,25 @@ import {
 } from 'recharts'
 
 function AllPlayersStats({ stats, onSelectPlayer }) {
+  const { t } = useTranslation()
   return (
     <div className="mb-8">
-      <h2 className="text-lg font-semibold text-gray-800 mb-3">All Players</h2>
+      <h2 className="text-lg font-semibold text-gray-800 mb-3">{t('players.allPlayers')}</h2>
       {stats.length === 0 ? (
-        <p className="text-gray-500">No player data yet</p>
+        <p className="text-gray-500">{t('players.noData')}</p>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Matches Played</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Matches Won</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Match Win %</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frames Won</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frames Lost</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frame Win %</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colPlayer')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colMatchesPlayed')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colMatchesWon')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colMatchWinPct')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colFramesWon')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colFramesLost')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colFrameWinPct')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -60,6 +62,7 @@ function AllPlayersStats({ stats, onSelectPlayer }) {
 }
 
 function PlayerPage() {
+  const { t } = useTranslation()
   const [players, setPlayers] = useState([])
   const [allStats, setAllStats] = useState([])
   const [selectedPlayer, setSelectedPlayer] = useState(null)
@@ -109,20 +112,20 @@ function PlayerPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Player Statistics</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('players.title')}</h1>
 
       <AllPlayersStats stats={allStats} onSelectPlayer={handleSelectPlayer} />
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Player for Tournament Detail
+          {t('players.selectPlayer')}
         </label>
         <select
           onChange={(e) => handleSelectPlayer(e.target.value)}
           className="w-full max-w-md border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={selectedPlayer || ''}
         >
-          <option value="">Choose a player...</option>
+          <option value="">{t('players.choosePlayer')}</option>
           {players.map(player => (
             <option key={player.id} value={player.id}>{player.name}</option>
           ))}
@@ -133,11 +136,11 @@ function PlayerPage() {
         <>
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              {selectedPlayerName} &mdash; Per-Tournament Breakdown
+              {t('players.breakdownTitle', { name: selectedPlayerName })}
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="text-sm font-medium text-gray-600 mb-3">Frames Won vs Lost</h3>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">{t('players.framesWonVsLost')}</h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -145,13 +148,13 @@ function PlayerPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="frames_won" fill="#3B82F6" name="Frames Won" />
-                    <Bar dataKey="frames_lost" fill="#EF4444" name="Frames Lost" />
+                    <Bar dataKey="frames_won" fill="#3B82F6" name={t('players.framesWon')} />
+                    <Bar dataKey="frames_lost" fill="#EF4444" name={t('players.framesLost')} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="text-sm font-medium text-gray-600 mb-3">Match Wins Over Time</h3>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">{t('players.matchWinsOverTime')}</h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -159,8 +162,8 @@ function PlayerPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="matches_won" stroke="#10B981" name="Match Wins" />
-                    <Line type="monotone" dataKey="matches_played" stroke="#3B82F6" name="Matches Played" />
+                    <Line type="monotone" dataKey="matches_won" stroke="#10B981" name={t('players.matchWins')} />
+                    <Line type="monotone" dataKey="matches_played" stroke="#3B82F6" name={t('players.matchesPlayed')} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -168,16 +171,16 @@ function PlayerPage() {
           </div>
 
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Tournament History</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('players.history')}</h3>
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tournament</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Matches Played</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Matches Won</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frames Won</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frames Lost</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colTournament')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colMatchesPlayed')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colMatchesWon')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colFramesWon')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('players.colFramesLost')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { tournamentService, playerService, setActiveTournament } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import StandingsTable from '../components/StandingsTable'
@@ -8,6 +9,7 @@ import PlayerSelector from '../components/PlayerSelector'
 import PerformanceChart from '../components/PerformanceChart'
 
 function UnlockModal({ onClose, onUnlocked }) {
+  const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -18,7 +20,7 @@ function UnlockModal({ onClose, onUnlocked }) {
     try {
       await onUnlocked(password)
     } catch (err) {
-      setError(err.response?.status === 401 ? 'Invalid password' : (err.response?.data?.error || err.message))
+      setError(err.response?.status === 401 ? t('tournament.invalidPassword') : (err.response?.data?.error || err.message))
     } finally {
       setSubmitting(false)
     }
@@ -27,10 +29,10 @@ function UnlockModal({ onClose, onUnlocked }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-96">
-        <h2 className="text-xl font-bold mb-4">Unlock to add results</h2>
+        <h2 className="text-xl font-bold mb-4">{t('tournament.unlockTitle')}</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('tournament.password')}</label>
             <input
               type="password"
               value={password}
@@ -46,14 +48,14 @@ function UnlockModal({ onClose, onUnlocked }) {
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
-              Unlock
+              {t('tournament.unlock')}
             </button>
           </div>
         </form>
@@ -65,6 +67,7 @@ function UnlockModal({ onClose, onUnlocked }) {
 function TournamentPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { admin } = useAuth()
   const [tournament, setTournament] = useState(null)
   const [players, setPlayers] = useState([])
@@ -127,28 +130,28 @@ function TournamentPage() {
       setShowPlayerSelector(false)
       fetchTournamentData()
     } catch (err) {
-      alert(`Error adding players: ${err.response?.data?.error || err.message}`)
+      alert(`${t('tournament.errorAddPlayers')} ${err.response?.data?.error || err.message}`)
     }
   }
 
   const handleStartTournament = async () => {
-    if (window.confirm('Start the tournament? This will randomize matches between all players.')) {
+    if (window.confirm(t('tournament.confirmStart'))) {
       try {
         await tournamentService.start(id)
         fetchTournamentData()
       } catch (err) {
-        alert(`Error starting tournament: ${err.response?.data?.error || err.message}`)
+        alert(`${t('tournament.errorStart')} ${err.response?.data?.error || err.message}`)
       }
     }
   }
 
   const handleStartPlayoffs = async () => {
-    if (window.confirm('Start playoffs with the top 8 players?')) {
+    if (window.confirm(t('tournament.confirmStartPlayoffs'))) {
       try {
         await tournamentService.startPlayoffs(id)
         fetchTournamentData()
       } catch (err) {
-        alert(`Error starting playoffs: ${err.response?.data?.error || err.message}`)
+        alert(`${t('tournament.errorStartPlayoffs')} ${err.response?.data?.error || err.message}`)
       }
     }
   }
@@ -166,7 +169,7 @@ function TournamentPage() {
   }
 
   if (!tournament) {
-    return <div>Tournament not found</div>
+    return <div>{t('tournament.notFound')}</div>
   }
 
   // Check if all round-robin matches are completed
@@ -193,7 +196,7 @@ function TournamentPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">{tournament.name}</h1>
           <span className="text-sm text-gray-500">
-            Status: {tournament.status === 'setup' ? 'Setup - Adding Players' : tournament.status === 'round_robin' ? 'Round Robin In Progress' : tournament.status === 'playoffs' ? 'Playoffs In Progress' : 'Completed'}
+            {t('tournament.status')} {tournament.status === 'setup' ? t('tournament.statusSetup') : tournament.status === 'round_robin' ? t('tournament.statusRoundRobin') : tournament.status === 'playoffs' ? t('tournament.statusPlayoffs') : t('tournament.statusCompleted')}
           </span>
         </div>
         <div className="flex items-center space-x-2">
@@ -201,9 +204,9 @@ function TournamentPage() {
             <button
               onClick={() => setShowUnlockModal(true)}
               className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800"
-              title="Enter the tournament password to add results"
+              title={t('tournament.unlockHint')}
             >
-              Unlock to Add Results
+              {t('tournament.unlockButton')}
             </button>
           )}
           {canEdit && tournament.status === 'setup' && (
@@ -212,14 +215,14 @@ function TournamentPage() {
                 onClick={() => setShowPlayerSelector(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Add Players
+                {t('tournament.addPlayers')}
               </button>
               {tournamentPlayers.length >= 2 && (
                 <button
                   onClick={handleStartTournament}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                 >
-                  Start Tournament
+                  {t('tournament.startTournament')}
                 </button>
               )}
             </>
@@ -229,7 +232,7 @@ function TournamentPage() {
               onClick={handleStartPlayoffs}
               className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
             >
-              Start Playoffs
+              {t('tournament.startPlayoffs')}
             </button>
           )}
         </div>
@@ -237,10 +240,10 @@ function TournamentPage() {
 
       {showPlayerSetup && (
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Selected Players</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('tournament.selectedPlayers')}</h2>
           <div className="bg-white rounded-lg shadow p-4">
             {tournamentPlayers.length === 0 ? (
-              <p className="text-gray-500">No players selected yet</p>
+              <p className="text-gray-500">{t('tournament.noPlayersSelected')}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {tournamentPlayers.map((player) => (
@@ -275,11 +278,11 @@ function TournamentPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Standings</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('tournament.standings')}</h2>
           <StandingsTable standings={standings} />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Performance Trend</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('tournament.performanceTrend')}</h2>
           <PerformanceChart standings={standings} />
         </div>
       </div>
@@ -287,16 +290,16 @@ function TournamentPage() {
       {tournament.status !== 'setup' && (
         <div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            {tournament.status === 'playoffs' ? 'Playoff Matches' : 'Round Robin Matches'}
+            {tournament.status === 'playoffs' ? t('tournament.playoffMatches') : t('tournament.roundRobinMatches')}
           </h2>
           {matches.length === 0 ? (
-            <p className="text-gray-500">No matches yet</p>
+            <p className="text-gray-500">{t('common.noMatchesYet')}</p>
           ) : (
             <div>
               {tournament.status === 'playoffs' && (
                 <>
                   <div className="mb-6">
-                    <h3 className="text-lg font-medium text-gray-700 mb-3">Quarter Finals</h3>
+                    <h3 className="text-lg font-medium text-gray-700 mb-3">{t('tournament.quarterFinals')}</h3>
                     <div className="flex flex-wrap gap-4">
                       {matches.filter(m => m.round === 'quarter_final').map((match) => (
                         <MatchCard
@@ -310,7 +313,7 @@ function TournamentPage() {
                     </div>
                   </div>
                   <div className="mb-6">
-                    <h3 className="text-lg font-medium text-gray-700 mb-3">Semi Finals</h3>
+                    <h3 className="text-lg font-medium text-gray-700 mb-3">{t('tournament.semiFinals')}</h3>
                     <div className="flex flex-wrap gap-4">
                       {matches.filter(m => m.round === 'semi_final').map((match) => (
                         <MatchCard
@@ -324,7 +327,7 @@ function TournamentPage() {
                     </div>
                   </div>
                   <div className="mb-6">
-                    <h3 className="text-lg font-medium text-gray-700 mb-3">Final</h3>
+                    <h3 className="text-lg font-medium text-gray-700 mb-3">{t('tournament.final')}</h3>
                     <div className="flex flex-wrap gap-4">
                       {matches.filter(m => m.round === 'final').map((match) => (
                         <MatchCard
@@ -341,32 +344,32 @@ function TournamentPage() {
               )}
               {tournament.status === 'completed' && matches.some(m => m.round === 'final' && m.status === 'completed') && (
                 <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h3 className="text-lg font-bold text-green-800 mb-2">🏆 Tournament Champion</h3>
+                  <h3 className="text-lg font-bold text-green-800 mb-2">{t('tournament.champion')}</h3>
                   <p className="text-green-700 text-xl font-semibold">
                     {matches.find(m => m.round === 'final' && m.status === 'completed').winner_name}
                   </p>
                 </div>
               )}
               <h3 className="text-lg font-medium text-gray-700 mb-3">
-                {tournament.status === 'playoffs' || tournament.status === 'completed' ? 'Round Robin Results' : 'Round Robin'}
+                {tournament.status === 'playoffs' || tournament.status === 'completed' ? t('tournament.roundRobinResults') : t('tournament.roundRobin')}
               </h3>
               <div className="space-y-6">
                 {roundRobinRounds.length === 0 ? (
-                  <p className="text-gray-500">No matches yet</p>
+                  <p className="text-gray-500">{t('common.noMatchesYet')}</p>
                 ) : (
                   roundRobinRounds.map(([round, roundMatches]) => {
                     const allComplete = roundMatches.every(m => m.status === 'completed')
                     return (
                       <div key={round}>
                         <div className="flex items-center gap-3 mb-3">
-                          <h4 className="font-semibold text-gray-800 text-base">Round {round}</h4>
+                          <h4 className="font-semibold text-gray-800 text-base">{t('tournament.round', { round })}</h4>
                           {allComplete ? (
                             <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                              Completed
+                              {t('common.completed')}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                              In Progress
+                              {t('common.inProgress')}
                             </span>
                           )}
                         </div>
