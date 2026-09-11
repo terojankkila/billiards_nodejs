@@ -65,6 +65,80 @@ To stop: `docker-compose down` (add `-v` to also remove the database volume).
 
 TODO: Add local dev instructions.
 
+## Docker Production Deployment
+
+A production single-node deployment via Docker Compose using the `Dockerfile.prod` images. The **frontend nginx container is the only publicly exposed service** (host port 80 by default): it serves the compiled React app and proxies `/api/*` to the backend over the internal Docker network. Neither the backend nor PostgreSQL is exposed to the host.
+
+### 1. Prepare the environment file
+
+```bash
+cp .env.prod.example .env.prod
+```
+
+Fill in the secrets in `.env.prod`. Every value is required — Docker refuses to start if any secret is missing:
+
+| Variable | Description |
+|---|---|
+| `POSTGRES_USER` | Database user (default: `billiard`) |
+| `POSTGRES_PASSWORD` | Database password — `openssl rand -hex 16` |
+| `JWT_SECRET` | JWT signing secret — `openssl rand -hex 32` |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Default admin account, created on first startup if no admins exist |
+| `FRONTEND_KEY` | Shared key, baked into the frontend bundle and checked by the backend — `openssl rand -hex 16` |
+| `FRONTEND_PORT` | Host port for the frontend nginx (default: `80`) |
+| `BACKEND_API_URL` | *Optional*. Non-public backend URL the frontend nginx proxies `/api` to (default: internal `http://backend:3001`). Use when the backend runs outside this compose network, e.g. a private-network/VPN address the host can reach |
+
+`.env.prod` is git-ignored and must never be committed.
+
+### 2. Build and start
+
+```bash
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml up -d --build
+```
+
+This starts three containers (project `billiard-prod`):
+
+- **db** — PostgreSQL 16, internal only (persistent `postgres_data_prod` volume)
+- **backend** — Express API (compiled with `backend/Dockerfile.prod`), internal only
+- **frontend** — nginx serving the SPA, published on `${FRONTEND_PORT}` / 80
+
+### 3. Verify
+
+```bash
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml ps
+curl http://localhost/api/tournaments        # expect []
+```
+
+Then open `http://localhost` and log in with the admin credentials from `.env.prod`.
+
+### 4. Backups
+
+```bash
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml exec -T db \
+  pg_dump -U ${POSTGRES_USER:-billiard} billiard_tournaments > backup.sql
+```
+
+Restore:
+
+```bash
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml exec -T db \
+  psql -U ${POSTGRES_USER:-billiard} billiard_tournaments < backup.sql
+```
+
+### 5. Update
+
+```bash
+git pull
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml up -d --build
+```
+
+### 6. Logs and teardown
+
+```bash
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml logs -f
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml down      # keep data
+docker-compose -p billiard-prod --env-file .env.prod -f docker-compose.prod.yml down -v   # wipe DB volume too
+```
+
 ## Kubernetes Deployment (Helm)
 
 ### Prerequisites
