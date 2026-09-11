@@ -26,7 +26,7 @@ spec:
               protocol: TCP
           env:
             - name: VITE_API_URL
-              value: "http://{{ .Release.Name }}-backend:{{ .Values.backend.service.port }}"
+              value: {{ .Values.frontend.apiUrl | default (printf "http://%s-backend:%d" .Release.Name (int .Values.backend.service.port)) | quote }}
           livenessProbe:
             httpGet:
               path: /

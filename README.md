@@ -211,6 +211,7 @@ Open `https://billiard.example.com` in your browser.
 | `backend.adminPassword` | `""` | Default admin password (CHANGE THIS) |
 | `frontend.image.repository` | `billiard-frontend` | Frontend image name |
 | `frontend.replicaCount` | `2` | Frontend pod count |
+| `frontend.apiUrl` | `""` | *Optional*. Non-public backend URL the frontend proxies `/api` to; defaults to the in-cluster backend Service (`http://<release>-backend:3001`) |
 | `postgres.enabled` | `true` | Deploy the postgres subchart |
 | `postgres.auth.username` | `billiard` | Database superuser name |
 | `postgres.auth.password` | `""` | Superuser password (auto-generated if empty) |

@@ -67,6 +67,11 @@ frontend:
       memory: 128Mi
   # App key must match backend.frontendKey
   appKey: ""
+  # API URL the frontend nginx proxies /api to. Defaults to the in-cluster
+  # backend Service (http://<release>-backend:3001). Override to reach a backend
+  # at a non-public URL (e.g. a private/VPN/network-internal address) instead of
+  # the deployed backend Service.
+  apiUrl: ""
 
 # -- Ingress (NGINX) ---------------------------------------------------------
 ingress:
