@@ -2,5 +2,8 @@ node_modules/
 dist/
 dev/
 .env
+.env.prod
+.idea
+*.iml
 *.log
 .DS_Store
